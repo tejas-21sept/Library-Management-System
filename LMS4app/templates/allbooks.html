@@ -1,0 +1,13 @@
+{% load rest_framework %}
+
+<html><body>
+
+<h1>Books Available</h1>
+
+<form action="register/" method="GET">
+    {% csrf_token %}
+    {% render_form serializer %}
+    <input type="submit" value="Save">
+</form>
+
+</body></html>
