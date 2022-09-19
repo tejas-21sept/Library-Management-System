@@ -1,102 +1,95 @@
-from rest_framework.response import Response
-from rest_framework.status import HTTP_201_CREATED, HTTP_400_BAD_REQUEST,HTTP_200_OK
-from rest_framework.views import APIView
-from .serializers import RegisterSerializer,BookSerializer
-from rest_framework_simplejwt.tokens import RefreshToken
-from .models import CustomUser 
-from rest_framework_simplejwt.authentication import JWTAuthentication
-from rest_framework.permissions import IsAuthenticated
-from .models import Book
-from django.shortcuts import get_object_or_404
-from django.shortcuts import redirect
+from itertools import product
+from django.shortcuts import render, redirect
+from .models import *
+from django.http import HttpResponse
+from django.contrib.auth import authenticate,login,logout
+from .forms import *
 
-
-class RegisterAPIView(APIView):
-    """"
-    For adding User in table. For performing CRUD operations on Book table, is_superuser must be set to True.
-    """ 
-    print("\nIn POST11\n")
-    try:   
-        def post(self, request):  
-            
-            serializer = RegisterSerializer(data=request.data)
-            print(f"\nData==> {serializer} \n {serializer.is_valid()}") 
-            print("\nIn POST\n")
-            if serializer.is_valid():
-                serializer.save()
-                print("\nIn POST12\n")
-                user = CustomUser.objects.get(username = serializer.data['username'])
-                refresh = RefreshToken.for_user(user)
-                return Response({"payload" : serializer.data,
-                                "status":HTTP_201_CREATED,
-                                'refresh': str(refresh),
-                                'access': str(refresh.access_token),
-                                "message" : "User is created Successfully"})
-            return Response({"status":HTTP_400_BAD_REQUEST,"payload" : serializer.errors,"message" : "User is not created Successfully"}) 
-    
-        """
-        For getting the list of books using student login.
-        """    
-        def get(self, request):
-            data = Book.objects.all()
-            serializer = BookSerializer(data, many=True)
-            return Response({"payload" : serializer.data,
-                            "status":HTTP_200_OK})
-    except:
-        Response({"status":HTTP_400_BAD_REQUEST,"message" : "Please check credentials provided."})
-        
-        
-class AuthenticateUserAPIView(APIView):
+# Create your views here.
+def home(request):
     """
-    For performing CRUD operations on Book table but if only logged in using Admin/ Superuser credentials. 
+        Homepage to get the list of all available products in the database.
     """
-    authentication_classes = [JWTAuthentication]
-    permission_classes = [IsAuthenticated]
-    
-    try:   
-        def get(self, request):     # Get the list of book
-            data = CustomUser .objects.all()
-            serializer = RegisterSerializer(data, many=True)
-            return Response({"payload" : serializer.data,
-                         "status":HTTP_200_OK})
-         
-        def post(self, request):    # Add a new book to list.
-            serializer = BookSerializer(data=request.data)
-            print(f"\nData==> {serializer}") 
-            print("\nIn POST\n")
-            if serializer.is_valid():
-                serializer.save()
+    print("\nInside home function.\n")
+    products = Product.objects.all()
+    print(f"Products ==> {products}\n")
+    context = {"products" : products}
+    return render(request, 'ecomapp/home.html', context)
 
-                return Response({"payload" : serializer.data,
-                            "status":HTTP_201_CREATED,
-                            "message" : "Book is added Successfully"})
-            return Response({"status":HTTP_400_BAD_REQUEST,
-                             "payload" : serializer.errors,
-                             "message" : "User is not created Successfully"}) 
-    
+def register(request):
+    """
+        User registration function. Save user credentials in the database.
+    """
+    #print(request)
+    if request.user.is_authenticated:
+        return redirect('home')
+    else:
+        form = createUserForm()
+        customerform = CustomerForm()
         
-        def put(self, request):     # Update book information.
-            serializer = BookSerializer(data=request.data)
-            print(f"\nData==> {serializer}") 
-            print("\nIn POST\n")
-            if serializer.is_valid():
-                serializer.save()
+        if request.method == 'POST':
+            form = createUserForm(request.POST)
+            customerform = CustomerForm(request.POST)
+            if form.is_valid() and customerform.is_valid():
+                print("\nI'm in POST Register\n")
+                user = form.save()
+                customer = customerform.save(commit=False)
+                customer.user = user
+                customer.save()
+                # user.save()
+            return redirect('home') 
+        context = {"adminform":form , "custform":customerform}     
+        return render(request, 'ecomapp/register.html', context)
+    
+def loginpage(request):
+    """
+        User Login function, Retrive and validate user credentials to authenticate the user.
+    """
+    if request.user.is_authenticated:
+        return redirect('home')
+    else:
+        if request.method == 'POST':
+            print(f"\nRequest ==> {request.POST} \n") 
+            username = request.POST['username'] 
+            print(f"Uname ==> {username}\n")
+            password = request.POST['password']
+            user= log.debug(user.check_password(pw)) # Logs True!!!
+            user = authenticate(request, username = username,password = password)
+            print(f"user==> {user}")
+            if user is not None:
+                login(request,user)
+                #return redirect('home') # check for after login page
+                return HttpResponse("Login Success.")
+        context = {}
+        return render(request, 'ecomapp/login.html', context)
+    
+def logout(request):
+    logout(request)
+    return redirect('home') # Check for logout redirection
 
-            return Response({"payload" : serializer.data,
-                            "status":HTTP_201_CREATED,
-                            "message" : "Book is updated Successfully"})
-            
-        def delete(self, request):  # Delete book record from table.
-            data=request.data['id']
-            obj1=Book.objects.get(pk=int(data))
-            obj1.delete()
-            print(f"\nData==> {type(data)}") 
-            print("\nIn POST\n")
-            return Response({
-                            "status":HTTP_201_CREATED,
-                            "message" : "Book is deleted Successfully"}) 
-    except:
-        Response({"status":HTTP_400_BAD_REQUEST,"message" : "Check Credentials"})
-        
-    
-    
+def placeorder(request,i):
+    """
+        Add elements in the perticular user's cart.
+    """
+    customer = Customer.objects.get(id=i)
+    form = CreatOrderF()
+    if request.method=="POST":
+        form = CreatOrderF(request.POST,instance=customer)
+        if form.is_valid():
+            form.save()
+            return redirect('home')
+    context = {'form':form}
+    return render(request, 'ecomapp/placeorder.html', context)
+
+def addProduct(request):
+    """
+        Add new products to display or available product's list.
+    """
+    form = ProductForm()
+    if request.method=="POST":
+        form = ProductForm(request.POST, request.FILES)
+        if form.is_valid():
+            form.save()
+            return redirect('home')
+    context = {'form':form}
+    return render(request, 'ecomapp/addProduct.html', context)
