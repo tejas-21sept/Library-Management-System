@@ -8,3 +8,4 @@ Authentication Type :- JWT Authentication
 Prerequisite :- Python, Django, Django ORM, Django REST API.
 
 
+Note - Compare and Pull request demonstration.
