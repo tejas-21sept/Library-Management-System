@@ -7,4 +7,4 @@ Authentication Type :- JWT Authentication
 
 Prerequisite :- Python, Django, Django ORM, Django REST API.
 
-Note:- Update in Created copy_of_master branch.
+
