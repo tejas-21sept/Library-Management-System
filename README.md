@@ -5,4 +5,7 @@ Environment :-  Python 3.10, Django 4,1, Djangorestframework 3.13.1, Djangorestf
 
 Authentication Type :- JWT Authentication
 
-Prerequisite :- Python, Django, Django ORM, Django REST API
+Prerequisite :- Python, Django, Django ORM, Django REST API.
+
+
+Note - Compare and Pull request demonstration.
